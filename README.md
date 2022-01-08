@@ -41,13 +41,15 @@ _Note: Codes are based on Python 3+._
     $ tree data/widerface
     data/widerface
     ├── eval_tools
-    ├── train_label
     ├── wider_face_split
     ├── WIDER_test
     ├── WIDER_train
-    └── WIDER_val
+    ├── WIDER_val
+    └── trainset.json           
     ```
-_NOTE: We relabled the WIDER Face train set using [RetinaFace](https://github.com/deepinsight/insightface/tree/master/detection/RetinaFace). New labels are in `$TRAIN_ROOT/data/train_label`._
+_NOTE: \
+We relabled the WIDER Face train set using [RetinaFace](https://github.com/deepinsight/insightface/tree/master/detection/RetinaFace). New labels are in 
+`$TRAIN_ROOT/data/widerface/trainset.json`, which is the COCO_format annotations file used in DALI dataloader._
 
 ## Training
 ```Shell
@@ -78,7 +80,7 @@ _NOTE: We now use the Python version of `eval_tools` from [here](https://github.
 
 Performance on WIDER Face (Val): scales=[1.], confidence_threshold=0.3:
 ```
-AP_easy=0.834, AP_medium=0.824, AP_hard=0.708
+AP_easy=0.856, AP_medium=0.842, AP_hard=0.727
 ```
 
 ## Export CPP source code
@@ -103,10 +105,24 @@ You can copy `$TRAIN_ROOT/tasks/task1/` to `$TRAIN_ROOT/tasks/task2/` or other s
 The loss used in training is EIoU, a novel extended IoU. More details can be found in:
 
 	@article{eiou,
-	 title={A Systematic IoU-Related Method: Beyond Simplified Regression for Better Localization},
-	 author={Hanyang Peng and Shiqi Yu},
-	 journal={IEEE Transactions on Image Processing},
+	 author={Peng, Hanyang and Yu, Shiqi},
+  	 journal={IEEE Transactions on Image Processing}, 
+  	 title={A Systematic IoU-Related Method: Beyond Simplified Regression for Better Localization}, 
+  	 year={2021},
+  	 volume={30},
+  	 pages={5032-5044},
+	 doi={10.1109/TIP.2021.3077144}
+	 }
+The paper can be open accessed at https://ieeexplore.ieee.org/document/9429909.
+
+We also published a paper on face detection to evaluate different methods.
+
+	@article{facedetect-yu,
+	 author={Yuantao Feng and Shiqi Yu and Hanyang Peng and Yan-ran Li and Jianguo Zhang}
+	 title={Detect Faces Efficiently: A Survey and Evaluations},
+	 journal={IEEE Transactions on Biometrics, Behavior, and Identity Science},
 	 year={2021}
 	 }
+	 
+The paper can be open accessed at https://ieeexplore.ieee.org/document/9580485
 
-The paper can be downloaded at https://ieeexplore.ieee.org/document/9429909.
