@@ -82,7 +82,7 @@ def matrix_iou(a, b):
     area_b = np.prod(b[:, 2:4] - b[:, 0:2], axis=1)
     return area_i / (area_a[:, np.newaxis] + area_b - area_i)
 
-
+# intersection over foreground
 def matrix_iof(a, b):
     """
     return iof of a and b, numpy version for data augenmentation
@@ -94,7 +94,12 @@ def matrix_iof(a, b):
     area_a = np.prod(a[:, 2:4] - a[:, 0:2], axis=1)
     return area_i / np.maximum(area_a[:, np.newaxis], 1)
 
-
+'''
+根据图像的真实gt边框与生成的anchor进行匹配
+1. 每一个gt匹配一个最大的anchor
+2. 每一个anchor根据iou和阈值匹配gt
+3. 根据匹配情况给anchor标记类别和偏移量
+'''
 def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
@@ -129,6 +134,7 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
         conf_t[idx] = 0
         return torch.zeros((1, priors.shape[0]))
 
+
     # [1,num_priors] best ground truth for each prior
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
     best_truth_idx.squeeze_(0)
@@ -150,7 +156,9 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
 
     return best_truth_overlap
 
-
+'''
+计算前向推导预测结果的anchor和landmark与真实坐标之间的偏差
+'''
 def encode(matched, priors, variances):
     """Encode the variances from the priorbox layers into the ground truth boxes
     we have matched (based on jaccard overlap) with the prior boxes.
@@ -182,20 +190,26 @@ def encode(matched, priors, variances):
     # return target for loss
     return torch.cat([g_cxcy, g_wh, g_xy1, g_xy2, g_xy3, g_xy4, g_xy5], 1)  # [num_priors,14]
 
-
+'''
+由预测的位置偏差、anchor 解码边界框和关键点的预测
+'''
 # Adapted from https://github.com/Hakuyume/chainer-ssd
 def decode(loc, priors, variances):
     """Decode locations from predictions using priors to undo
     the encoding we did for offset regression at train time.
     Args:
         loc (tensor): location predictions for loc layers,
-            Shape: [num_priors,4]
+            Shape: [num_priors,14]  # 4-->14包含五个关键点
         priors (tensor): Prior boxes in center-offset form.
             Shape: [num_priors,4].
         variances: (list[float]) Variances of priorboxes
     Return:
         decoded bounding box predictions
     """
+    #print(priors[:, 0:2].shape)
+    #print(loc[:, 0:2].shape)
+    #print(priors[:, 2:4].shape)
+    #print(loc[:, 0:2]* variances[0] * priors[:, 2:4])
     boxes = torch.cat((
         priors[:, 0:2] + loc[:, 0:2] * variances[0] * priors[:, 2:4],
         priors[:, 2:4] * torch.exp(loc[:, 2:4] * variances[1]),
@@ -288,5 +302,49 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         # keep only elements with an IoU <= overlap
         idx = idx[IoU.le(overlap)]
     return keep, count
+
+
+'''
+Log-softmax
+1. softmax函数分子分母同乘或除非零数，分式值不变。为了防止向上溢出。指数上减去输入信号中的最大值，进行溢出抑制。
+2. 减去最大值则最大输入为0，其余都为负数。可能存在向下溢出的情况。故对其使用log函数将除法转化为减法，减少下溢出风险，减少计算量，梯度优化更好。
+这里只计算分母了
+'''
+
+if __name__=="__main__":
+    # log_sum——exp test
+    x = torch.randn((2,20),dtype=torch.float32)
+    res = log_sum_exp(x)
+    print(res)
+
+    # decode test
+    loc = torch.randn(1, 4385, 14)
+    prior = torch.randn(1, 4385, 4)
+    #print(loc.shape)
+    #print(torch.squeeze(loc, axis=0).shape)
+    dets = decode(torch.squeeze(loc, axis=0),torch.squeeze(prior, axis=0),[0.1,0.2])
+    print(dets.shape)
+
+    # encode test
+    matchs = torch.randn(1, 4385, 4)
+    priors = torch.randn(1, 4385, 4)
+    var = encode(matchs, priors, [0.1,0.2])
+    print(var.shape)
+
+    # nms test
+    boxes = torch.randn(1, 4385, 4)
+    scores = torch.randn(1, 4385)
+    keep, count = nms(torch.squeeze(boxes, axis=0),torch.squeeze(scores, axis=0), overlap=0.5, top_k=200)
+    print(keep.shape)
+    print(count)
+
+    truths = torch.randn(1, 20, 4385)
+    priors2 = torch.randn(1, 4385, 4)
+    variances = torch.randn(1, 4385, 4)
+    labels = torch.randn(1, 20)
+    loc_t = torch.Tensor()
+    conf_t = torch.Tensor()
+    #best_truth_overlap = match(0.5, torch.squeeze(truths, axis=0), torch.squeeze(priors2, axis=0), [0.1,0.2], torch.squeeze(labels, axis=0), loc_t, conf_t, 0)
+
 
 
