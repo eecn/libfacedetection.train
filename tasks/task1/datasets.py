@@ -73,6 +73,6 @@ class WIDERFace(data.Dataset):
 
 
 if __name__ == '__main__':
-    wf = WIDERFace('./widerface', 'val', 'cuda:1')
+    wf = WIDERFace('../../data/widerface', 'val', 'cuda:1')
     print(wf.size, wf.split)
     print(wf[1430])
