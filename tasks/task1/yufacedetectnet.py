@@ -55,7 +55,7 @@ def convert_param2string(conv, name, is_depthwise=False, isfirst3x3x3=False, pre
 
     return resultstr
     
-
+# 深度可分离卷积  1x1卷积融合人通道信息 3x3的深度分类卷积进行同一个通道空间的信息融合
 class ConvDPUnit(nn.Module):
     def __init__(self, in_channels, out_channels, withBNRelu=True):
         super(ConvDPUnit, self).__init__()
@@ -84,6 +84,7 @@ class ConvDPUnit(nn.Module):
 
         return rs1 + rs2
 
+# 3x3卷积 stride=2 尺寸缩小 ConvDPUnit
 class Conv_head(nn.Module):
     def __init__(self, in_channels, mid_channels, out_channels):
         super(Conv_head, self).__init__()
@@ -107,6 +108,7 @@ class Conv_head(nn.Module):
        rs2 = self.conv2.convert_to_cppstring(varname)
        return rs1 + rs2
 
+# ConvDPUnit ConvDPUnit
 class Conv4layerBlock(nn.Module):
     def __init__(self, in_channels, out_channels, withBNRelu=True):
         super(Conv4layerBlock, self).__init__()
@@ -121,6 +123,7 @@ class Conv4layerBlock(nn.Module):
 
         return x
 
+#
 class YuFaceDetectNet(nn.Module):
 
     def __init__(self, phase, size):
@@ -129,7 +132,7 @@ class YuFaceDetectNet(nn.Module):
         self.num_classes = 2
         self.size = size
         
-        self.model0 = Conv_head(3, 16, 16)
+        self.model0 = Conv_head(3, 16, 16)# head 尺寸缩小2
         self.model1 = Conv4layerBlock(16, 64)
         self.model2 = Conv4layerBlock(64, 64)
         self.model3 = Conv4layerBlock(64, 64)
@@ -156,7 +159,7 @@ class YuFaceDetectNet(nn.Module):
 
     def multibox(self, num_classes):
         head_layers = []
-        head_layers += [Conv4layerBlock(self.model3.out_channels, 3 * (14 + 2 + 1), False)]
+        head_layers += [Conv4layerBlock(self.model3.out_channels, 3 * (14 + 2 + 1), False)] # fm上每个特征点的anchor数*(五点+两点+类别+iou)
         head_layers += [Conv4layerBlock(self.model4.out_channels, 2 * (14 + 2 + 1), False)]
         head_layers += [Conv4layerBlock(self.model5.out_channels, 2 * (14 + 2 + 1), False)]
         head_layers += [Conv4layerBlock(self.model6.out_channels, 3 * (14 + 2 + 1), False)]
@@ -177,7 +180,7 @@ class YuFaceDetectNet(nn.Module):
         x = self.model2(x)
         x = F.max_pool2d(x, 2)
         x = self.model3(x)
-        detection_sources.append(x)
+        detection_sources.append(x) # 8倍
 
         x = F.max_pool2d(x, 2)
         x = self.model4(x)
@@ -197,9 +200,9 @@ class YuFaceDetectNet(nn.Module):
         head_data = torch.cat([o.view(o.size(0), -1) for o in head_data], 1)
         head_data = head_data.view(head_data.size(0), -1, 17)
 
-        loc_data = head_data[:, :, 0:14]
-        conf_data = head_data[:, :, 14:16]
-        iou_data = head_data[:,:, 16:17]
+        loc_data = head_data[:, :, 0:14] # 位置偏差预测
+        conf_data = head_data[:, :, 14:16] # 类别置信度预测
+        iou_data = head_data[:,:, 16:17] # iou预测
         output = (loc_data, conf_data, iou_data)
         # print ('output size', head_data[0].size())
 
@@ -293,3 +296,13 @@ class YuFaceDetectNet(nn.Module):
             f.close()
 
         return 0 
+
+
+if __name__=="__main__":
+    from torchsummary import summary
+    net = YuFaceDetectNet("train",480)
+
+    print(net)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = net.to(device)
+    summary(model, input_size=(3, 480, 480),device="cuda")
