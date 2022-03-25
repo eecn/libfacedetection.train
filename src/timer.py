@@ -38,3 +38,20 @@ class Timer(object):
         self.start_time = 0.
         self.diff = 0.
         self.average_time = 0.
+if __name__=="__main__":
+    clock = Timer()
+    clock.tic()
+    time.sleep(10)
+    clock.toc()
+    time.sleep(10)
+    clock.toc()
+    time.sleep(10)
+    clock.toc()
+    print(clock.total_time)
+    print(clock.calls)
+    print(clock.start_time)
+    print(clock.diff)
+    print(clock.average_time)
+
+
+
