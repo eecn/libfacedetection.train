@@ -60,17 +60,17 @@ class MultiBoxLoss(nn.Module):
 
         loc_data, conf_data, iou_data = predictions
         priors = priors
-        num = loc_data.size(0)
-        num_priors = (priors.size(0))
+        num = loc_data.size(0) # 这里是batch_size
+        num_priors = (priors.size(0)) # anchor的个数
 
         # match priors (default boxes) and ground truth boxes
         loc_t = torch.Tensor(num, num_priors, 14)
         conf_t = torch.LongTensor(num, num_priors)
         iou_t = torch.Tensor(num, num_priors)
         for idx in range(num):
-            truths = targets[idx][:, 0:14].data
-            labels = targets[idx][:, -1].data
-            defaults = priors.data
+            truths = targets[idx][:, 0:14].data # 七个坐标点
+            labels = targets[idx][:, -1].data # 类别
+            defaults = priors.data # anchor在输入图像上的尺寸
             iou_t[idx] = match(self.threshold, truths, defaults, self.variance, labels, loc_t, conf_t, idx)
         iou_t = iou_t.view(num, num_priors, 1)
         if GPU:
@@ -79,17 +79,22 @@ class MultiBoxLoss(nn.Module):
             conf_t = conf_t.cuda(device)
             iou_t = iou_t.cuda(device)
 
+        # 这个是真实值的conf
         pos = conf_t > 0
 
         # Localization Loss
         # Shape: [batch,num_priors,4]
+        # 边界框坐标点之间是eiou  关键点是L1smooth
         pos_idx = pos.unsqueeze(pos.dim()).expand_as(loc_data)
         loc_p = loc_data[pos_idx].view(-1, 14)
         loc_t = loc_t[pos_idx].view(-1, 14)
         loss_bbox_eiou = eiou_loss(loc_p[:, 0:4], loc_t[:, 0:4], variance=self.variance, smooth_point=self.smooth_point, reduction='sum')
+        # torch.save(loc_p, "./loc_predict.pt")
+        # torch.save(loc_t, "./loc_target.pt")
         loss_lm_smoothl1 = F.smooth_l1_loss(loc_p[:, 4:14], loc_t[:, 4:14], reduction='sum')
 
         # IoU diff
+        # iou 差值loss是L1 smooth
         pos_idx_ = pos.unsqueeze(pos.dim()).expand_as(iou_data)
         iou_p = iou_data[pos_idx_].view(-1, 1)
         iou_t = iou_t[pos_idx_].view(-1, 1)
@@ -100,6 +105,7 @@ class MultiBoxLoss(nn.Module):
         loss_cls_ce = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
 
         # Hard Negative Mining
+        # 难样本挖掘  将正例样本ce置零 对celoss排序
         loss_cls_ce[pos.view(-1, 1)] = 0 # filter out pos boxes for now
         loss_cls_ce = loss_cls_ce.view(num, -1)
         _, loss_idx = loss_cls_ce.sort(1, descending=True)
@@ -109,6 +115,7 @@ class MultiBoxLoss(nn.Module):
         neg = idx_rank < num_neg.expand_as(idx_rank)
 
         # Confidence Loss Including Positive and Negative Examples
+        # gt表示greater than
         pos_idx = pos.unsqueeze(2).expand_as(conf_data)
         neg_idx = neg.unsqueeze(2).expand_as(conf_data)
         conf_p = conf_data[(pos_idx+neg_idx).gt(0)].view(-1,self.num_classes)
