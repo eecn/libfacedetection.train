@@ -149,11 +149,13 @@ def train():
         num_iter_in_epoch = len(train_loader)
         for iter_idx, one_batch_data in enumerate(train_loader):
             # load train data
+            # targets数据的形式 nx15 其中n是图像中包含的人脸个数 15=2*2+5*2+1
             images, targets = one_batch_data
             images = images.to(device)
             targets = [anno.to(device) for anno in targets]
 
             # forward
+            # out数据形式 (anchor_num,14),(anchor_num,2),(anchor_num,1)分别表示每个anchor对应的关键点坐标，属于脸的置信度(ont-hot格式)，eiou值
             out = net(images)
             # loss
             loss_bbox_eiou, loss_iouhead_smoothl1, loss_lm_smoothl1, loss_cls_ce = criterion(out, priors, targets)
