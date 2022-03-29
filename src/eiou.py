@@ -75,3 +75,12 @@ def eiou_loss(input, target, variance=[0.1, 0.2], smooth_point=0.1, reduction='s
     else:
         raise NotImplementedError()
     return l
+
+if __name__=="__main__":
+    predict = torch.load("./loc_predict.pt")
+    gt = torch.load("./loc_target.pt")
+    predict_box = predict[:,0:4]
+    gt_box = gt[:,0:4]
+    # 计算出来iou loss后还需要进一步除以总的人脸个数
+    loss_bbox_eiou = eiou_loss(predict_box, gt_box)
+    print(loss_bbox_eiou)
