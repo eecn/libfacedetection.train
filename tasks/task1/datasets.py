@@ -48,7 +48,7 @@ class WIDERFace(data.Dataset):
                 n_imgs += 1
 
         return flist, n_imgs
-
+    # eg: img  '30--Surgeons'   '30_Surgeons_Surgeons_30_819.jpg'
     def __getitem__(self, index):
         img = cv2.imread(self.img_list[index], cv2.IMREAD_COLOR).astype(np.float32)
         event, name = self.img_list[index].split('/')[-2:]
@@ -73,6 +73,6 @@ class WIDERFace(data.Dataset):
 
 
 if __name__ == '__main__':
-    wf = WIDERFace('../../data/widerface', 'val', 'cuda:1')
+    wf = WIDERFace('../../data/widerface', 'val', 'cuda:0')
     print(wf.size, wf.split)
     print(wf[1430])
