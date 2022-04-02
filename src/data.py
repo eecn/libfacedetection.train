@@ -432,5 +432,3 @@ if __name__ == "__main__":
     )
     num_iter_in_epoch = len(train_loader)
     print(num_iter_in_epoch)
-    #data_test = next(train_loader)
-    #print(data_test.shape)
