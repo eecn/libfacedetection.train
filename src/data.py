@@ -376,7 +376,8 @@ class DaliWiderfaceDataset(object):
                             last_batch_padded=last_batch_padded,
                             last_batch_policy=last_batch_policy,
                             prepare_first_batch=prepare_first_batch)
-     
+     # 返回list list长度为batch_size的个数
+     # 每个list为一个tensor shape为 n*15 其中n表示图像中包含的人脸个数 15表示 每一个人脸在图像中的位置 左上右下 5个关键点 和 属于人脸的置信度 2*7+1
     def _dali_collate(self, input):
         pyt_images, pyt_targets ,pyt_offsets = input[0]
         images, targets, offsets = pyt_images[0], pyt_targets[0], pyt_offsets[0]
@@ -416,3 +417,20 @@ def get_train_loader(imgs_root, annos_file, local_seed = -1, num_gpus = 1, batch
                             reader_name="Reader",
                             last_batch_policy=LastBatchPolicy.FILL)
     return train_loader
+
+if __name__ == "__main__":
+    train_loader = get_train_loader(
+        imgs_root=os.path.join("../data/widerface", 'WIDER_train/images'),
+        annos_file=os.path.join("../data/widerface", 'trainset.json'),
+        batch_size=16,
+        num_workers=8,
+        device_id=0,
+        local_seed=-1,
+        shuffle=True,
+        shuffle_after_epoch=False,
+        num_gpus=1,
+    )
+    num_iter_in_epoch = len(train_loader)
+    print(num_iter_in_epoch)
+    #data_test = next(train_loader)
+    #print(data_test.shape)
